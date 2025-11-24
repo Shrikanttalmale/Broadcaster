@@ -4,7 +4,11 @@ import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { initializeDatabase } from './services/database.service';
 import { errorHandler } from './middleware/error.middleware';
+import authMiddleware from './middleware/auth.middleware';
 import { logger } from './utils/logger';
+import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
+import licenseRoutes from './routes/license.routes';
 
 // Load environment variables
 dotenv.config();
@@ -16,6 +20,8 @@ const PORT = process.env.API_PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(authMiddleware.attachRequestContext);
+app.use(authMiddleware.logAccess);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -26,13 +32,22 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// API Routes (will be added in later phases)
+// API Routes - Phase 2
 app.get('/api/v1/config', (req: Request, res: Response) => {
   res.json({
-    version: process.env.APP_VERSION || '0.1.0',
+    version: process.env.APP_VERSION || '0.2.0',
     appName: process.env.APP_NAME || 'Broadcaster',
+    phase: 'Phase 2 - License & RBAC',
   });
 });
+
+// Authentication routes (public)
+app.use('/api/v1/auth', authRoutes);
+
+// Protected routes (require authentication)
+app.use('/api/v1/users', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/licenses', licenseRoutes);
 
 // Error handler
 app.use(errorHandler);
