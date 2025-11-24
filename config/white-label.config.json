@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "branding": {
+    "appName": "Broadcaster",
+    "companyName": "Broadcaster Technologies",
+    "logo": {
+      "imageUrl": "file://./assets/logo.png",
+      "width": 200,
+      "height": 60
+    },
+    "theme": {
+      "primaryColor": "#3B82F6",
+      "secondaryColor": "#1F2937",
+      "accentColor": "#8B5CF6",
+      "darkMode": false
+    },
+    "contact": {
+      "supportEmail": "support@broadcaster.app",
+      "supportPhone": "+1-800-000-0000",
+      "websiteUrl": "https://broadcaster.app"
+    }
+  },
+  "features": {
+    "campaignManagement": true,
+    "multiAccount": true,
+    "multiLanguage": ["en", "hi", "mr"],
+    "advancedReports": true,
+    "autoUpdates": true,
+    "apiAccess": false,
+    "customBranding": false
+  },
+  "restrictions": {
+    "maxAccounts": 5,
+    "maxCampaigns": 20,
+    "maxContacts": 50000,
+    "maxMessagesPerDay": 5000,
+    "canModifyBranding": false,
+    "canCreatePlans": false
+  }
+}

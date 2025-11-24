@@ -1,0 +1,44 @@
+{
+  "app": {
+    "name": "Broadcaster",
+    "title": "WhatsApp Bulk Marketing",
+    "tagline": "Professional bulk messaging platform"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "campaigns": "Campaigns",
+    "accounts": "Accounts",
+    "contacts": "Contacts",
+    "reports": "Reports",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "Welcome",
+    "username": "Username",
+    "password": "Password",
+    "signin": "Sign In",
+    "forgotPassword": "Forgot Password?",
+    "invalidCredentials": "Invalid credentials"
+  },
+  "dashboard": {
+    "welcome": "Welcome",
+    "overview": "Overview",
+    "totalCampaigns": "Total Campaigns",
+    "activeCampaigns": "Active Campaigns",
+    "totalContacts": "Total Contacts",
+    "messagesThisMonth": "Messages This Month"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "back": "Back",
+    "next": "Next"
+  }
+}

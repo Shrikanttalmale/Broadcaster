@@ -1,0 +1,44 @@
+{
+  "app": {
+    "name": "Broadcaster",
+    "title": "व्हाट्सएप बल्क मार्केटिंग",
+    "tagline": "व्यावसायिक बल्क मेसेजिंग प्लेटफॉर्म"
+  },
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "campaigns": "अभियान",
+    "accounts": "खातें",
+    "contacts": "संपर्क",
+    "reports": "रिपोर्ट",
+    "settings": "सेटिंग्स",
+    "logout": "लॉग आउट"
+  },
+  "login": {
+    "title": "स्वागत है",
+    "username": "उपयोगकर्ता नाम",
+    "password": "पासवर्ड",
+    "signin": "साइन इन करें",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "invalidCredentials": "अमान्य साख पत्र"
+  },
+  "dashboard": {
+    "welcome": "स्वागत है",
+    "overview": "सारांश",
+    "totalCampaigns": "कुल अभियान",
+    "activeCampaigns": "सक्रिय अभियान",
+    "totalContacts": "कुल संपर्क",
+    "messagesThisMonth": "इस महीने संदेश"
+  },
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "error": "त्रुटि",
+    "success": "सफल",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "add": "जोड़ें",
+    "back": "वापस",
+    "next": "अगला"
+  }
+}

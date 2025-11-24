@@ -1,0 +1,53 @@
+[
+  {
+    "id": "plan_basic",
+    "name": "Starter",
+    "description": "Perfect for getting started",
+    "price": 500,
+    "currency": "INR",
+    "features": {
+      "maxAccounts": 1,
+      "maxCampaigns": 3,
+      "maxContacts": 5000,
+      "maxMessagesPerDay": 500,
+      "multiLanguage": false,
+      "customBranding": false,
+      "advancedReports": false
+    },
+    "isActive": true
+  },
+  {
+    "id": "plan_pro",
+    "name": "Professional",
+    "description": "For growing businesses",
+    "price": 2000,
+    "currency": "INR",
+    "features": {
+      "maxAccounts": 5,
+      "maxCampaigns": 20,
+      "maxContacts": 50000,
+      "maxMessagesPerDay": 5000,
+      "multiLanguage": true,
+      "customBranding": true,
+      "advancedReports": true
+    },
+    "isActive": true
+  },
+  {
+    "id": "plan_enterprise",
+    "name": "Enterprise",
+    "description": "For large-scale operations",
+    "price": 5000,
+    "currency": "INR",
+    "features": {
+      "maxAccounts": 50,
+      "maxCampaigns": 200,
+      "maxContacts": 500000,
+      "maxMessagesPerDay": 50000,
+      "multiLanguage": true,
+      "customBranding": true,
+      "advancedReports": true
+    },
+    "isActive": true
+  }
+]

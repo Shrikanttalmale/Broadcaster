@@ -1,0 +1,63 @@
+{
+  "name": "broadcaster",
+  "version": "0.1.0",
+  "description": "WhatsApp Bulk Marketing Desktop Application with White-Labeling & Distributor Support",
+  "main": "dist/main/index.js",
+  "homepage": "./",
+  "author": "Broadcaster Team",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "main",
+    "api",
+    "ui"
+  ],
+  "scripts": {
+    "install-all": "npm install && npm install -w main && npm install -w api && npm install -w ui",
+    "dev": "concurrently \"npm run dev -w api\" \"npm run dev -w ui\" \"npm run dev -w main\"",
+    "build": "npm run build -w main && npm run build -w api && npm run build -w ui",
+    "start": "electron dist/main/index.js",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "test": "npm run test -w api && npm run test -w ui",
+    "lint": "npm run lint -w api && npm run lint -w ui && npm run lint -w main",
+    "format": "prettier --write \"**/*.{js,json,ts,tsx,md}\"",
+    "precommit": "npm run lint && npm run format",
+    "release": "npm run build && npm run dist && gh release create"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4",
+    "prettier": "^3.1.0"
+  },
+  "build": {
+    "appId": "com.broadcaster.app",
+    "productName": "Broadcaster",
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist-app"
+    },
+    "files": [
+      "dist/main/**/*",
+      "dist/api/**/*",
+      "dist/ui/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "certificateFile": null,
+      "certificatePassword": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
