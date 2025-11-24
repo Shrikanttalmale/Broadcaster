@@ -24,10 +24,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(channel, (_event, ...args) => callback(...args)),
 });
 
-// Expose localStorage wrapper
+// In-memory storage for the preload context
+const memoryStorage: Record<string, string> = {};
+
+// Expose storage wrapper
 contextBridge.exposeInMainWorld('appStorage', {
-  getItem: (key: string) => localStorage.getItem(key),
-  setItem: (key: string, value: string) => localStorage.setItem(key, value),
-  removeItem: (key: string) => localStorage.removeItem(key),
-  clear: () => localStorage.clear(),
+  getItem: (key: string) => memoryStorage[key] || null,
+  setItem: (key: string, value: string) => {
+    memoryStorage[key] = value;
+  },
+  removeItem: (key: string) => {
+    delete memoryStorage[key];
+  },
+  clear: () => {
+    Object.keys(memoryStorage).forEach(key => delete memoryStorage[key]);
+  },
 });

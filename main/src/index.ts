@@ -4,14 +4,11 @@ import {
   Menu,
   ipcMain,
   dialog,
-  session,
 } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
-import * as isDev from 'electron-is-dev';
 
 let mainWindow: BrowserWindow | null = null;
-let apiProcess: any = null;
 
 // Configure auto-updater
 autoUpdater.checkForUpdatesAndNotify();
@@ -26,12 +23,12 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false,
       sandbox: true,
     },
     icon: path.join(__dirname, '../assets/icon.png'),
   });
 
+  const isDev = process.env.NODE_ENV === 'development';
   const startUrl = isDev
     ? 'http://localhost:3000' // React dev server
     : `file://${path.join(__dirname, '../ui/dist/index.html')}`; // Production build

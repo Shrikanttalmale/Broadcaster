@@ -56,8 +56,7 @@ export class AuthMiddleware {
   generateToken(payload: JWTPayload): string {
     return jwt.sign(payload, this.jwtSecret, {
       expiresIn: this.jwtExpiresIn,
-      algorithm: 'HS256',
-    });
+    } as any);
   }
 
   /**
@@ -66,8 +65,7 @@ export class AuthMiddleware {
   generateRefreshToken(payload: JWTPayload): string {
     return jwt.sign(payload, this.jwtRefreshSecret, {
       expiresIn: this.refreshTokenExpiresIn,
-      algorithm: 'HS256',
-    });
+    } as any);
   }
 
   /**
@@ -311,33 +309,28 @@ export class AuthMiddleware {
   /**
    * Middleware: Log access attempts
    */
-  logAccess = (req: Request, res: Response, next: NextFunction) => {
+  logAccess = (req: Request, res: Response, next: any) => {
     const startTime = Date.now();
 
-    // Intercept res.end to capture status code
-    const originalEnd = res.end;
-    res.end = function (...args: any[]) {
-      req.accessLog!.status = res.statusCode;
-      req.accessLog!.duration = Date.now() - startTime;
-
-      // Log the access
+    // Log the access
+    const originalStatusCode = res.statusCode;
+    
+    next();
+    
+    setTimeout(() => {
       const log = req.accessLog!;
       const level =
-        res.statusCode >= 500
+        originalStatusCode >= 500
           ? 'error'
-          : res.statusCode >= 400
+          : originalStatusCode >= 400
             ? 'warn'
             : 'info';
       
       // Here you would normally call logger service
       console.log(
-        `[${level.toUpperCase()}] ${log.method} ${log.path} - ${res.statusCode} (${log.duration}ms) ${log.userId ? `[User: ${log.userId}]` : ''}`
+        `[${level.toUpperCase()}] ${log.method} ${log.path} - ${originalStatusCode} (${Date.now() - startTime}ms) ${log.userId ? `[User: ${log.userId}]` : ''}`
       );
-
-      return originalEnd.apply(res, args);
-    } as any;
-
-    next();
+    }, 0);
   };
 
   /**
