@@ -1,3 +1,6 @@
+/* Import enterprise styles BEFORE Tailwind */
+@import url('./index-enterprise.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

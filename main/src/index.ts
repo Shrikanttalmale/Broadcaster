@@ -8,42 +8,81 @@ import {
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 
+// Set development mode
+process.env.NODE_ENV = 'development';
+
+// Disable GPU acceleration to avoid GPU process crashes
+app.disableHardwareAcceleration();
+
+// Handle any uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught exception:', error);
+});
+
 let mainWindow: BrowserWindow | null = null;
 
 // Configure auto-updater
 autoUpdater.checkForUpdatesAndNotify();
 
 const createWindow = () => {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 800,
-    minHeight: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-    },
-    icon: path.join(__dirname, '../assets/icon.png'),
-  });
+  try {
+    mainWindow = new BrowserWindow({
+      width: 1400,
+      height: 900,
+      minWidth: 800,
+      minHeight: 600,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+      },
+      icon: path.join(__dirname, '../assets/icon.png'),
+    });
 
-  const isDev = process.env.NODE_ENV === 'development';
-  const startUrl = isDev
-    ? 'http://localhost:3000' // React dev server
-    : `file://${path.join(__dirname, '../ui/dist/index.html')}`; // Production build
+    const isDev = process.env.NODE_ENV === 'development';
+    console.log('Development mode:', isDev);
+    
+    let startUrl: string;
+    if (isDev) {
+      // Try to use the port passed from start-dev.js, otherwise default to 5173
+      const vitePort = process.env.VITE_PORT || '5173';
+      startUrl = `http://localhost:${vitePort}`;
+    } else {
+      startUrl = `file://${path.join(__dirname, '../ui/dist/index.html')}`;
+    }
 
-  mainWindow.loadURL(startUrl);
+    console.log('Loading URL:', startUrl);
+    mainWindow.loadURL(startUrl);
 
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
+    // Add error handlers
+    mainWindow.webContents.on('crashed', () => {
+      console.error('❌ Web contents crashed');
+    });
+
+    mainWindow.on('unresponsive', () => {
+      console.warn('⚠️  Window unresponsive');
+    });
+
+    mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+      console.error('❌ Failed to load:', errorCode, errorDescription);
+    });
+
+    if (isDev) {
+      mainWindow.webContents.openDevTools();
+    }
+
+    mainWindow.on('closed', () => {
+      console.log('🪟 Window closed');
+      mainWindow = null;
+    });
+
+    createMenu();
+    console.log('✅ Window created successfully');
+  } catch (error) {
+    console.error('❌ Error creating window:', error);
+    process.exit(1);
   }
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-
-  createMenu();
 };
 
 const createMenu = () => {
@@ -107,7 +146,10 @@ const createMenu = () => {
   Menu.setApplicationMenu(menu);
 };
 
-app.on('ready', createWindow);
+app.on('ready', () => {
+  console.log('📱 App ready, creating window...');
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

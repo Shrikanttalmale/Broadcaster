@@ -1,0 +1,25 @@
+[2] [eval]:1
+[2] setTimeout(() =, ['start'], {stdio: 'inherit'}), 8000)
+[2]             ^
+[2] 
+[2] SyntaxError: Unexpected token ')'
+[2]     at makeContextifyScript (node:internal/vm:185:14)
+[2]     at compileScript (node:internal/process/execution:386:10)
+[2]     at node:internal/process/execution:450:25
+[2]     at [eval]-wrapper:6:24
+[2]     at runScriptInContext (node:internal/process/execution:447:60)
+[2]     at evalFunction (node:internal/process/execution:87:30)
+[2]     at evalScript (node:internal/process/execution:99:3)
+[2]     at node:internal/main/eval_string:74:3
+[2] 
+[2] Node.js v22.16.0
+[2] node -e "setTimeout(() =, ['start'], {stdio: 'inherit'}), 8000)" exited with code 1
+[0] 
+[0] > broadcaster-api@0.1.0 dev
+[0] > concurrently "tsc --watch" "nodemon dist/index.js"
+[0] 
+[1] 
+[1] > broadcaster-ui@0.1.0 dev
+[1] > vite
+[1] 
+[1] ^CTerminate batch job (Y/N)? Terminate batch job (Y/N)? npm run dev -w ui exited with code 1

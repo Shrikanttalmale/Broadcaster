@@ -19,11 +19,13 @@
     "password": "Password",
     "signin": "Sign In",
     "forgotPassword": "Forgot Password?",
-    "invalidCredentials": "Invalid credentials"
+    "invalidCredentials": "Invalid credentials",
+    "noAccount": "Don't have an account?",
+    "signup": "Sign up"
   },
   "dashboard": {
-    "welcome": "Welcome",
-    "overview": "Overview",
+    "welcome": "Welcome back",
+    "overview": "Overview of your Broadcaster account",
     "totalCampaigns": "Total Campaigns",
     "activeCampaigns": "Active Campaigns",
     "totalContacts": "Total Contacts",

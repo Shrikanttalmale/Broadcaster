@@ -14,7 +14,6 @@
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": true,
     "jsx": "react-jsx"
   },
   "include": ["src"],

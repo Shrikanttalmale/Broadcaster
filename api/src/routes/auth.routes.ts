@@ -32,9 +32,9 @@ let refreshTokens: Map<string, RefreshToken> = new Map();
 const initializeDefaultAdmin = () => {
   if (users.size === 0) {
     const adminId = uuidv4();
-    const defaultPassword = 'broadcaster@123'; // Should be changed on first login in production
+    const defaultPassword = 'password'; // Demo password as per UI
     
-    users.set('admin@broadcaster.local', {
+    const defaultAdmin: StoredUser = {
       id: adminId,
       email: 'admin@broadcaster.local',
       passwordHash: bcrypt.hashSync(defaultPassword, 10),
@@ -43,7 +43,13 @@ const initializeDefaultAdmin = () => {
       licenseId: 'master-license-1',
       isActive: true,
       createdAt: new Date(),
-    });
+    };
+    
+    // Store by email
+    users.set('admin@broadcaster.local', defaultAdmin);
+    
+    // Also store by username for easier access
+    users.set('admin', defaultAdmin);
   }
 };
 
@@ -162,31 +168,38 @@ router.post('/register', authMiddleware.requirePermission('create', 'users'), as
 
 /**
  * POST /auth/login
- * Login with email and password
+ * Login with email/username and password
  */
 router.post(
   '/login',
   authMiddleware.rateLimitAuth(5, 15 * 60 * 1000),
   async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
+      const { email, username, password } = req.body;
+      
+      console.log('Login attempt:', { email, username, password, allUsers: Array.from(users.keys()) });
+      
+      // Accept either email or username
+      const identifier = email || username;
 
       // Validation
-      if (!email || !password) {
+      if (!identifier || !password) {
         return res.status(400).json({
           success: false,
-          error: 'Email and password are required',
+          error: 'Email/username and password are required',
           code: 'MISSING_CREDENTIALS',
         });
       }
 
-      // Find user
-      const user = users.get(email);
-
+      // Find user (try both email and username)
+      let user = users.get(identifier);
+      
+      console.log('User found:', user ? 'YES' : 'NO', 'Identifier:', identifier);
+      
       if (!user) {
         return res.status(401).json({
           success: false,
-          error: 'Invalid email or password',
+          error: 'Invalid email/username or password',
           code: 'INVALID_CREDENTIALS',
         });
       }
