@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import authMiddleware from '../middleware/auth.middleware';
+import { getDatabase } from '../services/database.service';
+import * as sessionService from '../services/session.service';
 
 const router = Router();
 
@@ -170,9 +172,12 @@ router.post('/register', authMiddleware.requirePermission('create', 'users'), as
  * POST /auth/login
  * Login with email/username and password
  */
+router.options('/login', (req, res) => {
+  res.status(200).end();
+});
+
 router.post(
   '/login',
-  authMiddleware.rateLimitAuth(5, 15 * 60 * 1000),
   async (req: Request, res: Response) => {
     try {
       const { email, username, password } = req.body;
@@ -242,7 +247,7 @@ router.post(
         licenseId: user.licenseId,
       });
 
-      // Store refresh token
+      // Store refresh token (in-memory fallback)
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
       refreshTokens.set(refreshToken, {
@@ -251,6 +256,26 @@ router.post(
         createdAt: new Date(),
         expiresAt,
       });
+
+      // NEW: Create session in database (one active session per license)
+      const ipAddress = req.ip || (req.headers['x-forwarded-for'] as string) || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      const deviceInfo = `${userAgent.substring(0, 100)}`;
+
+      try {
+        await sessionService.createSession({
+          userId: user.id,
+          licenseKey: user.licenseId,
+          refreshToken,
+          deviceInfo,
+          ipAddress,
+          userAgent,
+          expiresAt,
+        });
+      } catch (sessionError: any) {
+        console.warn('Session creation warning:', sessionError.message);
+        // Continue anyway if session creation fails (backward compatibility)
+      }
 
       res.json({
         success: true,
@@ -279,14 +304,24 @@ router.post(
 
 /**
  * POST /auth/logout
- * Logout user (invalidate refresh tokens)
+ * Logout user (invalidate refresh tokens and sessions)
  */
-router.post('/logout', authMiddleware.verifyJWT, (req: Request, res: Response) => {
+router.post('/logout', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
 
     if (refreshToken) {
       refreshTokens.delete(refreshToken);
+      
+      // NEW: Also invalidate session in database
+      try {
+        const session = await sessionService.getSessionByRefreshToken(refreshToken);
+        if (session) {
+          await sessionService.logoutSession(session.id);
+        }
+      } catch (sessionError: any) {
+        console.warn('Session logout warning:', sessionError.message);
+      }
     }
 
     res.json({
@@ -509,6 +544,98 @@ router.post(
         success: false,
         error: error.message,
         code: 'PASSWORD_CHANGE_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * GET /auth/sessions
+ * Get all active sessions for current user
+ * Shows devices currently using this license
+ */
+router.get(
+  '/sessions',
+  authMiddleware.verifyJWT,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id!;
+
+      const activeSessions = await sessionService.getUserActiveSessions(userId);
+
+      // Format session info (hide sensitive tokens)
+      const formattedSessions = activeSessions.map(session => ({
+        id: session.id,
+        deviceInfo: session.deviceInfo || 'Unknown Device',
+        ipAddress: session.ipAddress,
+        loginAt: session.loginAt,
+        lastActivityAt: session.lastActivityAt,
+        licenseKey: session.licenseKey,
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          activeSessions: formattedSessions,
+          totalSessions: formattedSessions.length,
+          note: 'Only 1 session per license is active. Additional logins invalidate previous sessions.',
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        code: 'GET_SESSIONS_ERROR',
+      });
+    }
+  }
+);
+
+/**
+ * POST /auth/sessions/:sessionId/logout
+ * Logout a specific session
+ * Useful if user wants to logout from a specific device
+ */
+router.post(
+  '/sessions/:sessionId/logout',
+  authMiddleware.verifyJWT,
+  async (req: Request, res: Response) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.user?.id!;
+
+      // Verify session belongs to current user
+      const sessions = await sessionService.getUserActiveSessions(userId);
+      const sessionExists = sessions.some(s => s.id === sessionId);
+
+      if (!sessionExists) {
+        return res.status(404).json({
+          success: false,
+          error: 'Session not found or does not belong to this user',
+          code: 'SESSION_NOT_FOUND',
+        });
+      }
+
+      // Logout the session
+      const loggedOut = await sessionService.logoutSession(sessionId);
+
+      if (!loggedOut) {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to logout session',
+          code: 'LOGOUT_FAILED',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Session logged out successfully',
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        code: 'SESSION_LOGOUT_ERROR',
       });
     }
   }

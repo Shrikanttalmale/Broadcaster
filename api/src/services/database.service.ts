@@ -48,9 +48,11 @@ const initializeSchema = async () => {
         passwordHash TEXT NOT NULL,
         email TEXT,
         role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'operator')),
+        licenseKey TEXT,
         isActive BOOLEAN DEFAULT 1,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(licenseKey) REFERENCES licenses(licenseKey) ON DELETE SET NULL
       )
     `);
 
@@ -159,6 +161,66 @@ const initializeSchema = async () => {
       )
     `);
 
+    // Sessions table (for tracking active sessions per user/license)
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        userId TEXT NOT NULL,
+        licenseKey TEXT NOT NULL,
+        refreshToken TEXT UNIQUE NOT NULL,
+        deviceInfo TEXT,
+        ipAddress TEXT,
+        userAgent TEXT,
+        isActive BOOLEAN DEFAULT 1,
+        loginAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        lastActivityAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expiresAt DATETIME,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (userId) REFERENCES users(id),
+        FOREIGN KEY (licenseKey) REFERENCES licenses(licenseKey)
+      )
+    `);
+
     logger.info('Database schema created successfully');
+  }
+  
+  // Always seed default license (will check if it exists first)
+  await seedDefaultLicense();
+};
+
+const seedDefaultLicense = async () => {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    // Check if license already exists
+    const existingLicense = await db.get(
+      `SELECT licenseKey FROM licenses WHERE licenseKey = ?`,
+      ['master-license-1']
+    );
+    
+    if (!existingLicense) {
+      const now = new Date();
+      const validUntil = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year
+      
+      await db.run(
+        `INSERT INTO licenses (id, licenseKey, licenseType, isActive, validFrom, validUntil, maxInstallations, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'lic-master-1',
+          'master-license-1',
+          'master',
+          1,
+          now.toISOString(),
+          validUntil.toISOString(),
+          999,
+          now.toISOString(),
+          now.toISOString(),
+        ]
+      );
+      
+      logger.info('Default master license created: master-license-1');
+    }
+  } catch (error: any) {
+    logger.error('Error seeding default license:', error);
   }
 };

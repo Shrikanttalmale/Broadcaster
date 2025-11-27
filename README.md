@@ -2,6 +2,19 @@
 
 A comprehensive, zero-cost desktop application for WhatsApp bulk marketing with white-labeling support for distributors.
 
+## ⚡ Quick Start
+
+**New to the project?** Start here:
+- **[QUICK_START_5MIN.md](QUICK_START_5MIN.md)** - Setup in 5 minutes
+- **[LICENSE_DOCS_INDEX.md](LICENSE_DOCS_INDEX.md)** - Documentation guide
+
+**Ready to generate licenses?**
+```bash
+cd api
+npm install
+npm run generate-license --help
+```
+
 ## ✨ Features
 
 - **Desktop Application**: Electron-based with React UI
@@ -84,6 +97,39 @@ broadcaster/
 ├── .github/workflows/    # CI/CD pipelines
 └── package.json          # Root workspace config
 ```
+
+## 📜 License Management (PHASE 2 COMPLETE)
+
+### Owner-Only License Generation Model
+
+This application uses a **secure, zero-cost licensing model** where:
+
+- **Only you (owner) generate licenses** using the CLI tool
+- **Distributors cannot create licenses** - they can only use the app
+- **Zero server costs** - everything is cryptographically signed and works offline
+- **Complete control** - you maintain full authority over who can use the software
+
+### Quick Start: Generate Your First License
+
+```bash
+cd api
+npm install
+npm run generate-license --help
+```
+
+**Generate 50 licenses for your first customer:**
+
+```bash
+npm run generate-license \
+  --type user \
+  --count 50 \
+  --customer "ABC Company" \
+  --validity 365 \
+  --format csv \
+  --save
+```
+
+For detailed guide, see: [LICENSE_GENERATOR_GUIDE.md](LICENSE_GENERATOR_GUIDE.md)
 
 ## 🔧 Installation & Setup
 

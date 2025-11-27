@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import licenseService, { License, LicenseGenerationOptions } from '../services/license.service';
 import authMiddleware from '../middleware/auth.middleware';
+import { validateLicense } from '../middleware/license.middleware';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ let licenses: Map<string, License> = new Map();
 router.get(
   '/',
   authMiddleware.verifyJWT,
+  validateLicense,
   authMiddleware.requirePermission('read', 'licenses'),
   (req: Request, res: Response) => {
     try {

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import authMiddleware from '../middleware/auth.middleware';
+import { validateLicense } from '../middleware/license.middleware';
 import rBACService from '../services/rbac.service';
 
 const router = Router();
@@ -27,6 +28,7 @@ let users: Map<string, User> = new Map();
 router.get(
   '/',
   authMiddleware.verifyJWT,
+  validateLicense,
   authMiddleware.requirePermission('read', 'users'),
   (req: Request, res: Response) => {
     try {

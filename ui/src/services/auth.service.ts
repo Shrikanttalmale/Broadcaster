@@ -18,11 +18,29 @@ export interface AuthResponse {
 
 export const authService = {
   login: async (username: string, password: string): Promise<AuthResponse> => {
-    const response = await api.post('/api/v1/auth/login', { username, password });
-    const { accessToken, refreshToken } = response.data.data;
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
-    return response.data.data;
+    try {
+      console.log('Attempting login with:', username);
+      const response = await api.post('/api/v1/auth/login', { email: username, password });
+      console.log('Full response:', response);
+      console.log('Response data:', response.data);
+      console.log('Response data.data:', response.data.data);
+      
+      const { accessToken, refreshToken, user } = response.data.data;
+      console.log('Extracted tokens and user:', { accessToken: !!accessToken, refreshToken: !!refreshToken, user: !!user });
+      
+      if (!accessToken || !refreshToken) {
+        throw new Error('Missing tokens in response');
+      }
+      
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
+      console.log('Tokens saved to localStorage');
+      return { accessToken, refreshToken, user };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      console.error('Error response:', error.response?.data);
+      throw error;
+    }
   },
 
   register: async (username: string, email: string, password: string): Promise<AuthResponse> => {
