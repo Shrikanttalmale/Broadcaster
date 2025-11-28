@@ -29,7 +29,7 @@ function App() {
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/broadcast" element={<BroadcastPage />} />
             <Route path="/whatsapp" element={<WhatsAppPage />} />
-            <Route path="/" element={<Navigate to="/login" />} />
+            <Route path="/" element={<Navigate to="/dashboard" />} />
           </Routes>
         </BrowserRouter>
       </I18nextProvider>
