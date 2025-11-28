@@ -257,6 +257,39 @@ router.post(
         expiresAt,
       });
 
+      // Ensure user exists in database
+      const db = getDatabase();
+      if (db) {
+        try {
+          const existingUser = await db.get(
+            `SELECT id FROM users WHERE id = ?`,
+            [user.id]
+          );
+          
+          if (!existingUser) {
+            // Insert user into database
+            await db.run(
+              `INSERT INTO users (id, username, passwordHash, email, role, licenseKey, isActive, createdAt, updatedAt)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                user.id,
+                user.email.split('@')[0],
+                user.passwordHash,
+                user.email,
+                user.role,
+                user.licenseId,
+                user.isActive ? 1 : 0,
+                new Date().toISOString(),
+                new Date().toISOString(),
+              ]
+            );
+          }
+        } catch (dbError: any) {
+          console.warn('Error persisting user to database:', dbError.message);
+          // Continue anyway
+        }
+      }
+
       // NEW: Create session in database (one active session per license)
       const ipAddress = req.ip || (req.headers['x-forwarded-for'] as string) || 'unknown';
       const userAgent = req.headers['user-agent'] || 'unknown';

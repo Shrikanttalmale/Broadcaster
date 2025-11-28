@@ -8,7 +8,11 @@ import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import LicensesPage from './pages/LicensesPage';
 import RolesPage from './pages/RolesPage';
-
+import ContactsPage from './pages/ContactsPage';
+import TemplatesPage from './pages/TemplatesPage';
+import CampaignsPage from './pages/CampaignsPage';
+import BroadcastPage from './pages/BroadcastPage';
+import WhatsAppPage from './pages/WhatsAppPage';
 function App() {
   return (
     <ThemeProvider>
@@ -20,6 +24,11 @@ function App() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/licenses" element={<LicensesPage />} />
             <Route path="/roles" element={<RolesPage />} />
+            <Route path="/contacts" element={<ContactsPage />} />
+            <Route path="/templates" element={<TemplatesPage />} />
+            <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/broadcast" element={<BroadcastPage />} />
+            <Route path="/whatsapp" element={<WhatsAppPage />} />
             <Route path="/" element={<Navigate to="/login" />} />
           </Routes>
         </BrowserRouter>

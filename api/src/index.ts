@@ -9,6 +9,11 @@ import { logger } from './utils/logger';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import licenseRoutes from './routes/license.routes';
+import contactsRoutes from './routes/contacts.routes';
+import templatesRoutes from './routes/templates.routes';
+import campaignsRoutes from './routes/campaigns.routes';
+import broadcastRoutes from './routes/broadcast.routes';
+import whatsappRoutes from './routes/whatsapp.routes';
 
 // Load environment variables
 dotenv.config();
@@ -53,6 +58,11 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/licenses', licenseRoutes);
+app.use('/api/v1/contacts', contactsRoutes);
+app.use('/api/v1/templates', templatesRoutes);
+app.use('/api/v1/campaigns', campaignsRoutes);
+app.use('/api/v1/broadcast', broadcastRoutes);
+app.use('/api/v1/whatsapp', whatsappRoutes);
 
 // Error handler
 app.use(errorHandler);

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { ThemeSwitcher } from '../components/ThemeSwitcher';
 import { authService, User } from '../services/auth.service';
-import { Users, Lock, FileText, LogOut, Menu, X, Zap, Shield, CheckCircle } from 'lucide-react';
+import { Users, Lock, FileText, LogOut, Menu, X, Zap, Shield, CheckCircle, MessageSquare, Send } from 'lucide-react';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -349,6 +349,67 @@ export default function DashboardPage() {
                     >
                       {item.desc}
                     </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Messaging Section */}
+        <div className="mb-14">
+          <div className="flex items-center gap-2 mb-6">
+            <MessageSquare style={{ color: themeConfig.colors.primary }} size={28} />
+            <h2
+              className="text-3xl font-black"
+              style={{ color: themeConfig.colors.text }}
+            >
+              Messaging
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {[
+              { label: '📱 WhatsApp', icon: Users, path: '/whatsapp', color: '#25d366', desc: 'Connect & manage accounts' },
+              { label: '👥 Contacts', icon: Users, path: '/contacts', color: '#8b5cf6', desc: 'Manage contacts' },
+              { label: '📝 Templates', icon: FileText, path: '/templates', color: '#06b6d4', desc: 'Message templates' },
+              { label: '🎯 Campaigns', icon: Send, path: '/campaigns', color: '#f59e0b', desc: 'Create campaigns' },
+              { label: '📤 Broadcast', icon: Send, path: '/broadcast', color: '#ef4444', desc: 'Send messages' },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className="group cursor-pointer"
+                >
+                  <div
+                    className="p-4 rounded-xl border-2 transition-all duration-300 transform hover:scale-105 hover:-translate-y-2 backdrop-blur-sm"
+                    style={{
+                      backgroundColor: `${themeConfig.colors.surface}dd`,
+                      borderColor: themeConfig.colors.border,
+                      boxShadow: `0 0 15px ${item.color}15`,
+                    }}
+                  >
+                    <div className="text-center">
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-2 transition-all group-hover:scale-110"
+                        style={{ backgroundColor: `${item.color}20` }}
+                      >
+                        <Icon size={20} style={{ color: item.color }} />
+                      </div>
+                      <h3
+                        className="text-sm font-bold mb-1"
+                        style={{ color: themeConfig.colors.text }}
+                      >
+                        {item.label}
+                      </h3>
+                      <p
+                        className="text-xs"
+                        style={{ color: themeConfig.colors.textSecondary }}
+                      >
+                        {item.desc}
+                      </p>
+                    </div>
                   </div>
                 </div>
               );
