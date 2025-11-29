@@ -174,6 +174,8 @@ router.post('/start-session', authMiddleware.verifyJWT, async (req: Request, res
 router.get('/sessions', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
+    logger.info(`[WhatsApp] Fetching sessions for user: ${userId}`);
+    
     const db = await import('../services/database.service').then(m => m.getDatabase());
 
     // Migration: Assign any orphaned WhatsApp accounts to current user
@@ -193,6 +195,7 @@ router.get('/sessions', authMiddleware.verifyJWT, async (req: Request, res: Resp
     }
 
     const sessions = await whatsappService.getUserSessions(userId);
+    logger.info(`[WhatsApp] Found ${sessions.length} sessions for user ${userId}`);
 
     res.json({
       success: true,

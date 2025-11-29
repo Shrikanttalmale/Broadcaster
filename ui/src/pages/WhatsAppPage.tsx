@@ -15,7 +15,7 @@ interface WhatsAppSession {
 export default function WhatsAppPage() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<WhatsAppSession | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -33,10 +33,16 @@ export default function WhatsAppPage() {
 
   const fetchSessions = async () => {
     try {
+      setLoading(true);
       const response = await api.get('/api/v1/whatsapp/sessions');
-      setSessions(response.data.data.sessions);
+      console.log('WhatsApp Sessions API Response:', response.data);
+      console.log('Sessions data:', response.data.data?.sessions);
+      setSessions(response.data.data?.sessions || []);
     } catch (error: any) {
       console.error('Error fetching sessions:', error);
+      setSessions([]);
+    } finally {
+      setLoading(false);
     }
   };
 

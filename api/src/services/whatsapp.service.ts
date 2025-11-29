@@ -709,6 +709,18 @@ class WhatsAppService {
         [userId]
       );
 
+      logger.info(`[getUserSessions] Query result for userId ${userId}: ${accounts?.length || 0} accounts`);
+      
+      if (!accounts || accounts.length === 0) {
+        // Also log all accounts in the database
+        const allAccounts = await db.all(`SELECT id, phoneNumber, userId FROM whatsapp_accounts`);
+        logger.warn(`[getUserSessions] No accounts found for userId ${userId}. Total accounts in DB: ${allAccounts?.length || 0}`);
+        if (allAccounts && allAccounts.length > 0) {
+          logger.info(`[getUserSessions] All accounts in DB:`, allAccounts);
+        }
+        return [];
+      }
+
       return accounts.map((account: any) => {
         const session = this.sessions.get(account.id);
         let isConnected = session ? session.connected : false;
