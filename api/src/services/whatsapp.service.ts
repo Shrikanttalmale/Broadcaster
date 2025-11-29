@@ -697,7 +697,7 @@ class WhatsAppService {
 
   /**
    * Get all sessions for a user
-   * Does NOT trigger lazy loading - just shows current in-memory status
+   * Get user sessions from database
    */
   async getUserSessions(userId: string): Promise<any[]> {
     const db = getDatabase();
