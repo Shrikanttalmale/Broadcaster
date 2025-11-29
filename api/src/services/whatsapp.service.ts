@@ -48,8 +48,15 @@ class WhatsAppService {
    */
   async initialize(): Promise<void> {
     try {
+      // Initialize whatsapp-web service (restores saved sessions on-demand)
+      try {
+        const { whatsappWebService } = await import('./whatsapp-web.service');
+        await (whatsappWebService as any).initialize?.();
+      } catch (err) {
+        logger.warn('Could not initialize whatsapp-web service:', err);
+      }
+
       logger.info('WhatsApp service initialized (lazy session loading enabled)');
-      // Just log initialization, don't load sessions yet
       // Sessions will be loaded on-demand when user accesses them
     } catch (error: any) {
       logger.error('Error initializing WhatsApp service:', error);
@@ -78,26 +85,48 @@ class WhatsAppService {
         [accountId, userId]
       );
 
-      if (!account?.sessionData) {
-        return null; // No credentials to restore
+      if (!account) {
+        return null; // Account doesn't exist
       }
 
       logger.info(`Lazy loading session for account ${accountId}...`);
       
-      // Try to restore
-      try {
-        await this.resumeSession(accountId, userId);
-        const restored = this.sessions.get(accountId);
-        return restored?.connected ? restored : null;
-      } catch (error: any) {
-        logger.warn(`Failed to restore session ${accountId}: ${error.message}`);
-        return null;
+      // Try to restore from Baileys first
+      if (account.sessionData) {
+        try {
+          await this.resumeSession(accountId, userId);
+          const restored = this.sessions.get(accountId);
+          if (restored?.connected) {
+            return restored;
+          }
+        } catch (error: any) {
+          logger.warn(`Failed to restore Baileys session ${accountId}: ${error.message}`);
+        }
       }
+
+      // Try to restore from whatsapp-web.js
+      try {
+        const { whatsappWebService } = await import('./whatsapp-web.service');
+        const phoneNumber = account.phoneNumber;
+        const restored = await (whatsappWebService as any).restoreSession?.(accountId, userId, phoneNumber);
+        if (restored) {
+          logger.info(`Successfully restored WhatsApp Web session for ${phoneNumber}`);
+          const webSession = (whatsappWebService as any).sessions?.get(accountId);
+          if (webSession) {
+            return { ...webSession, connected: true } as any;
+          }
+        }
+      } catch (error: any) {
+        logger.warn(`Failed to restore whatsapp-web session ${accountId}: ${error.message}`);
+      }
+
+      return null;
     } catch (error: any) {
       logger.error('Error ensuring session restored:', error);
       return null;
     }
   }
+
   private async createAuthState(userId: string, accountId: string): Promise<any> {
     const db = getDatabase();
     if (!db) throw new Error('Database not initialized');

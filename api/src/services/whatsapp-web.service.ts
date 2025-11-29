@@ -299,6 +299,132 @@ class WhatsAppWebService {
   }
 
   /**
+   * Initialize whatsapp-web service - restore saved sessions from disk
+   */
+  async initialize(): Promise<void> {
+    const db = getDatabase();
+    if (!db) return; // Database not ready yet
+
+    try {
+      logger.info('WhatsApp Web service initializing...');
+
+      // Get all active accounts from database
+      const accounts = await db.all(
+        `SELECT id, userId, phoneNumber FROM whatsapp_accounts WHERE isActive = 1`
+      );
+
+      logger.info(`Found ${accounts.length} active WhatsApp accounts to restore`);
+
+      // Try to restore each account's session from disk
+      for (const account of accounts) {
+        try {
+          const sessionPath = path.join(this.sessionsDir, `session_${account.id}`);
+          
+          // Check if session files exist
+          if (fs.existsSync(sessionPath)) {
+            logger.info(`Session files found for ${account.phoneNumber}, will restore on-demand`);
+            // We don't immediately restore here to avoid blocking startup
+            // Sessions will be restored on-demand when user accesses them
+          }
+        } catch (err) {
+          logger.warn(`Could not check session for ${account.phoneNumber}:`, err);
+        }
+      }
+
+      logger.info('WhatsApp Web service initialized (on-demand session restoration enabled)');
+    } catch (error: any) {
+      logger.warn('Error initializing WhatsApp Web service:', error);
+      // Don't throw - service should start even if initialization has issues
+    }
+  }
+
+  /**
+   * Restore a saved session from disk
+   */
+  async restoreSession(accountId: string, userId: string, phoneNumber: string): Promise<boolean> {
+    const db = getDatabase();
+    if (!db) throw new Error('Database not initialized');
+
+    try {
+      const sessionPath = path.join(this.sessionsDir, `session_${accountId}`);
+
+      // Check if saved session exists
+      if (!fs.existsSync(sessionPath)) {
+        logger.info(`No saved session found for ${phoneNumber}, need to scan QR code`);
+        return false;
+      }
+
+      logger.info(`Attempting to restore WhatsApp Web session for ${phoneNumber}...`);
+
+      // Create and initialize client
+      const client = new Client({
+        authStrategy: new (require('whatsapp-web.js').LocalAuth)({
+          clientId: `${accountId}`,
+          dataPath: this.sessionsDir,
+        }),
+        puppeteer: {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+          ],
+        },
+      });
+
+      // Setup event handlers before initializing
+      client.on(Events.AUTHENTICATED, async () => {
+        logger.info(`WhatsApp Web authenticated (restored) for ${phoneNumber}`);
+        
+        const session: WASessionWeb = {
+          id: accountId,
+          userId,
+          phoneNumber,
+          client,
+          connected: true,
+          createdAt: new Date(),
+          lastActivity: new Date(),
+        };
+
+        this.sessions.set(accountId, session);
+
+        // Update database
+        await db.run(
+          `UPDATE whatsapp_accounts 
+           SET isActive = 1, lastLogin = ? 
+           WHERE id = ?`,
+          [new Date().toISOString(), accountId]
+        );
+      });
+
+      client.on(Events.DISCONNECTED, async () => {
+        logger.warn(`WhatsApp Web session ${accountId} disconnected`);
+        this.sessions.delete(accountId);
+        await db.run(
+          `UPDATE whatsapp_accounts SET isActive = 0, updatedAt = ? WHERE id = ?`,
+          [new Date().toISOString(), accountId]
+        );
+      });
+
+      client.on(Events.MESSAGE_RECEIVED, (message: any) => {
+        logger.info(`Message received on restored session: ${message.from}`);
+      });
+
+      // Initialize client
+      await Promise.race([
+        client.initialize(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Client initialization timeout')), 30000)
+        ),
+      ]);
+
+      return true;
+    } catch (error: any) {
+      logger.warn(`Could not restore session for ${phoneNumber}:`, error.message);
+      return false;
+    }
+  }
+
+  /**
    * Disconnect session
    */
   async disconnectSession(accountId: string): Promise<void> {
