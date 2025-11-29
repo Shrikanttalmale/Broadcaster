@@ -21,6 +21,7 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "libphonenumber-js": "^1.12.29",
+    "node-cron": "^4.2.1",
     "pino": "^8.17.2",
     "pino-pretty": "^10.3.1",
     "qrcode": "^1.5.4",

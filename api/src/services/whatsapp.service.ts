@@ -43,8 +43,61 @@ class WhatsAppService {
   }
 
   /**
-   * Create authentication state from database
+   * Initialize WhatsApp service - called once on server startup
+   * Does NOT restore all sessions - that's done lazily
    */
+  async initialize(): Promise<void> {
+    try {
+      logger.info('WhatsApp service initialized (lazy session loading enabled)');
+      // Just log initialization, don't load sessions yet
+      // Sessions will be loaded on-demand when user accesses them
+    } catch (error: any) {
+      logger.error('Error initializing WhatsApp service:', error);
+    }
+  }
+
+  /**
+   * Get or restore a session lazily (on-demand)
+   * Only reconnects when user actually tries to use the account
+   * Much more scalable than loading all sessions at startup
+   */
+  private async ensureSessionRestored(accountId: string, userId: string): Promise<WASession | null> {
+    try {
+      // Check if already in memory
+      const inMemorySession = this.sessions.get(accountId);
+      if (inMemorySession?.connected) {
+        return inMemorySession;
+      }
+
+      // If not in memory or disconnected, try to restore
+      const db = getDatabase();
+      if (!db) return null;
+
+      const account = await db.get(
+        `SELECT * FROM whatsapp_accounts WHERE id = ? AND userId = ?`,
+        [accountId, userId]
+      );
+
+      if (!account?.sessionData) {
+        return null; // No credentials to restore
+      }
+
+      logger.info(`Lazy loading session for account ${accountId}...`);
+      
+      // Try to restore
+      try {
+        await this.resumeSession(accountId, userId);
+        const restored = this.sessions.get(accountId);
+        return restored?.connected ? restored : null;
+      } catch (error: any) {
+        logger.warn(`Failed to restore session ${accountId}: ${error.message}`);
+        return null;
+      }
+    } catch (error: any) {
+      logger.error('Error ensuring session restored:', error);
+      return null;
+    }
+  }
   private async createAuthState(userId: string, accountId: string): Promise<any> {
     const db = getDatabase();
     if (!db) throw new Error('Database not initialized');
@@ -463,11 +516,6 @@ class WhatsAppService {
     if (!db) throw new Error('Database not initialized');
 
     try {
-      const session = this.sessions.get(accountId);
-      if (!session || !session.connected) {
-        throw new Error('WhatsApp account not connected');
-      }
-
       // Validate account ownership
       const account = await db.get(
         `SELECT * FROM whatsapp_accounts WHERE id = ? AND userId = ?`,
@@ -476,6 +524,12 @@ class WhatsAppService {
 
       if (!account) {
         throw new Error('WhatsApp account not found');
+      }
+
+      // Try to ensure session is restored (lazy load if needed)
+      const session = await this.ensureSessionRestored(accountId, userId);
+      if (!session || !session.connected) {
+        throw new Error('WhatsApp account not connected. Please scan QR code or try Resume button.');
       }
 
       // Format phone number for WhatsApp (add country code if needed)
@@ -571,15 +625,31 @@ class WhatsAppService {
         throw new Error('Account not found');
       }
 
-      const session = this.sessions.get(accountId);
+      // Check BOTH Baileys and whatsapp-web.js services
+      let session = this.sessions.get(accountId);
+      let isConnected = session ? session.connected : false;
       
-      // Connected status: either in-memory connected OR database isActive flag
-      // (whatsapp-web.js updates isActive immediately on authentication)
-      const inMemoryConnected = session ? session.connected : false;
-      const dbConnected = Boolean(account.isActive);
-      const isConnected = inMemoryConnected || dbConnected;
+      // If not connected in Baileys, check whatsapp-web.js
+      if (!isConnected) {
+        try {
+          // Import the whatsapp-web service to check its session status
+          const { whatsappWebService } = await import('./whatsapp-web.service');
+          const webSession = (whatsappWebService as any).sessions?.get(accountId);
+          if (webSession?.connected) {
+            isConnected = true;
+            logger.info(`Session ${accountId} is connected via whatsapp-web.js`);
+          }
+        } catch (err) {
+          // Ignore import errors
+        }
+      }
 
-      logger.info(`Session ${accountId} status: inMemory=${inMemoryConnected}, db=${dbConnected}, final=${isConnected}`);
+      // Log connection status details
+      logger.info(`Session status for ${accountId}: 
+        - Baileys in memory: ${session ? 'YES' : 'NO'}
+        - Baileys connected: ${session ? session.connected : 'N/A'}
+        - Final connected: ${isConnected}
+        - DB isActive: ${account.isActive}`);
 
       return {
         id: account.id,
@@ -598,6 +668,7 @@ class WhatsAppService {
 
   /**
    * Get all sessions for a user
+   * Does NOT trigger lazy loading - just shows current in-memory status
    */
   async getUserSessions(userId: string): Promise<any[]> {
     const db = getDatabase();
@@ -611,18 +682,26 @@ class WhatsAppService {
 
       return accounts.map((account: any) => {
         const session = this.sessions.get(account.id);
+        let isConnected = session ? session.connected : false;
         
-        // Connected status: either in-memory connected OR database isActive flag
-        // (whatsapp-web.js updates isActive immediately on authentication)
-        const inMemoryConnected = session ? session.connected : false;
-        const dbConnected = Boolean(account.isActive);
-        const isConnected = inMemoryConnected || dbConnected;
+        // If not connected in Baileys, check whatsapp-web.js
+        if (!isConnected) {
+          try {
+            const { whatsappWebService } = require('./whatsapp-web.service');
+            const webSession = (whatsappWebService as any).sessions?.get(account.id);
+            if (webSession?.connected) {
+              isConnected = true;
+            }
+          } catch (err) {
+            // Ignore import errors
+          }
+        }
         
         return {
           id: account.id,
           phoneNumber: account.phoneNumber,
           connected: isConnected,
-          isActive: Boolean(account.isActive),
+          isActive: Boolean(account.isActive), // Has stored credentials
           lastLogin: account.lastLogin,
           createdAt: account.createdAt,
           updatedAt: account.updatedAt,

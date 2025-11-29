@@ -3,6 +3,7 @@ import cors from 'cors';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { initializeDatabase } from './services/database.service';
+import { whatsappService } from './services/whatsapp.service';
 import { errorHandler } from './middleware/error.middleware';
 import authMiddleware from './middleware/auth.middleware';
 import { logger } from './utils/logger';
@@ -13,13 +14,14 @@ import contactsRoutes from './routes/contacts.routes';
 import templatesRoutes from './routes/templates.routes';
 import campaignsRoutes from './routes/campaigns.routes';
 import broadcastRoutes from './routes/broadcast.routes';
+import schedulerRoutes from './routes/scheduler.routes';
 import whatsappRoutes from './routes/whatsapp.routes';
 
 // Load environment variables
 dotenv.config();
 
 const app: Express = express();
-const PORT = process.env.API_PORT || 3001;
+const PORT = parseInt(process.env.API_PORT || '3001', 10);
 
 // Middleware
 app.use(cors({
@@ -62,6 +64,7 @@ app.use('/api/v1/contacts', contactsRoutes);
 app.use('/api/v1/templates', templatesRoutes);
 app.use('/api/v1/campaigns', campaignsRoutes);
 app.use('/api/v1/broadcast', broadcastRoutes);
+app.use('/api/v1/scheduler', schedulerRoutes);
 app.use('/api/v1/whatsapp', whatsappRoutes);
 
 // Error handler
@@ -79,10 +82,24 @@ const startServer = async () => {
     await initializeDatabase();
     logger.info('Database initialized successfully');
 
-    // Start server
-    app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`);
+    // Initialize WhatsApp service (lightweight - no session restoration)
+    await whatsappService.initialize();
+
+    // Start server with error handling
+    const server = app.listen(PORT, '127.0.0.1', () => {
+      logger.info(`✅ Server successfully listening on http://127.0.0.1:${PORT}`);
     });
+
+    // Handle server errors
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.error(`❌ Port ${PORT} is already in use. Please kill the process using that port.`);
+      } else {
+        logger.error(`❌ Server error: ${err.message}`);
+      }
+      process.exit(1);
+    });
+
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

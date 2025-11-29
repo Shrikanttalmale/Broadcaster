@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, Upload, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Search, Upload, Trash2, Edit2, ArrowLeft } from 'lucide-react';
 import api from '../services/api';
 
 interface Contact {
@@ -22,6 +22,7 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -31,6 +32,7 @@ export default function ContactsPage() {
     email: '',
     tags: '',
   });
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch contacts
   useEffect(() => {
@@ -54,24 +56,49 @@ export default function ContactsPage() {
 
   const handleAddContact = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     try {
       const tags = formData.tags
         ? formData.tags.split(',').map((t) => t.trim())
         : [];
 
-      await api.post('/api/v1/contacts', {
-        name: formData.name,
-        phoneNumber: formData.phoneNumber,
-        email: formData.email || undefined,
-        tags: tags.length > 0 ? tags : undefined,
-      });
+      if (editingId) {
+        // Update existing contact
+        await api.put(`/api/v1/contacts/${editingId}`, {
+          name: formData.name,
+          phoneNumber: formData.phoneNumber,
+          email: formData.email || undefined,
+          tags: tags.length > 0 ? tags : undefined,
+        });
+      } else {
+        // Create new contact
+        await api.post('/api/v1/contacts', {
+          name: formData.name,
+          phoneNumber: formData.phoneNumber,
+          email: formData.email || undefined,
+          tags: tags.length > 0 ? tags : undefined,
+        });
+      }
 
       setFormData({ name: '', phoneNumber: '', email: '', tags: '' });
+      setEditingId(null);
       setShowAddModal(false);
       setPage(1);
       fetchContacts();
     } catch (error: any) {
-      console.error('Error creating contact:', error);
+      const errorMessage = error?.response?.data?.error || error?.message || 'Error saving contact';
+      setError(errorMessage);
+      console.error('Error saving contact:', error);
+    }
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    try {
+      await api.delete(`/api/v1/contacts/${contactId}`);
+      setSelectedContacts([]);
+      fetchContacts();
+    } catch (error: any) {
+      console.error('Error deleting contact:', error);
     }
   };
 
@@ -129,9 +156,19 @@ export default function ContactsPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Contacts</h1>
-          <p className="text-gray-600">Manage your audience and contact lists</p>
+        <div className="mb-8 flex items-center gap-4">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition"
+            title="Back to Home"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Contacts</h1>
+            <p className="text-gray-600">Manage your audience and contact lists</p>
+          </div>
         </div>
 
         {/* Actions Bar */}
@@ -166,7 +203,11 @@ export default function ContactsPage() {
               </label>
 
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({ name: '', phoneNumber: '', email: '', tags: '' });
+                  setShowAddModal(true);
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
                 <Plus className="w-4 h-4" />
@@ -187,7 +228,7 @@ export default function ContactsPage() {
         </div>
 
         {/* Contacts Table */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white rounded-lg shadow-md overflow-x-auto">
           {loading ? (
             <div className="p-8 text-center text-gray-500">Loading contacts...</div>
           ) : contacts.length === 0 ? (
@@ -196,10 +237,10 @@ export default function ContactsPage() {
             </div>
           ) : (
             <>
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+              <table className="w-full min-w-max">
+                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                   <tr>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-6 py-3 text-left whitespace-nowrap">
                       <input
                         type="checkbox"
                         onChange={(e) => {
@@ -212,19 +253,19 @@ export default function ContactsPage() {
                         checked={selectedContacts.length === contacts.length}
                       />
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
                       Phone
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
                       Tags
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 whitespace-nowrap">
                       Actions
                     </th>
                   </tr>
@@ -232,7 +273,7 @@ export default function ContactsPage() {
                 <tbody>
                   {contacts.map((contact) => (
                     <tr key={contact.id} className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <input
                           type="checkbox"
                           checked={selectedContacts.includes(contact.id)}
@@ -245,11 +286,11 @@ export default function ContactsPage() {
                           }}
                         />
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                         {contact.name}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{contact.phoneNumber}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{contact.phoneNumber}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                         {contact.email || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm">
@@ -262,12 +303,27 @@ export default function ContactsPage() {
                           </span>
                         ))}
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button className="text-indigo-600 hover:text-indigo-900 mr-4">
+                      <td className="px-6 py-4 text-sm whitespace-nowrap">
+                        <button 
+                          onClick={() => {
+                            setFormData({
+                              name: contact.name,
+                              phoneNumber: contact.phoneNumber,
+                              email: contact.email || '',
+                              tags: contact.tags?.join(', ') || '',
+                            });
+                            setEditingId(contact.id);
+                            setShowAddModal(true);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteContacts()}
+                          onClick={() => {
+                            setSelectedContacts([contact.id]);
+                            setTimeout(() => handleDeleteContact(contact.id), 0);
+                          }}
                           className="text-red-600 hover:text-red-900"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -318,11 +374,18 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {/* Add Contact Modal */}
+      {/* Add/Edit Contact Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-2xl font-bold mb-4">Add New Contact</h2>
+            <h2 className="text-2xl font-bold mb-4">{editingId ? 'Edit Contact' : 'Add New Contact'}</h2>
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+            
             <form onSubmit={handleAddContact}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -378,7 +441,12 @@ export default function ContactsPage() {
               <div className="flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setEditingId(null);
+                    setError(null);
+                    setFormData({ name: '', phoneNumber: '', email: '', tags: '' });
+                  }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
@@ -387,7 +455,7 @@ export default function ContactsPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Add Contact
+                  {editingId ? 'Update Contact' : 'Add Contact'}
                 </button>
               </div>
             </form>

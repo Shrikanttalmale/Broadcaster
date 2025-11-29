@@ -118,7 +118,8 @@ class ContactsService {
    */
   validateEmail(email: string): boolean {
     if (!email) return true; // Email is optional
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Basic email validation - just check for @ and a dot
+    const emailRegex = /^[^\s@]+@[^\s@.]+\.[^\s@]+$|^[^\s@]+@[^\s@]+$/;
     return emailRegex.test(email);
   }
 
@@ -133,8 +134,8 @@ class ContactsService {
       };
     }
 
-    // Remove extra whitespace
-    if (!/^[a-zA-Z\s'-]+$/.test(name)) {
+    // Allow letters, numbers, spaces, hyphens, and apostrophes
+    if (!/^[a-zA-Z0-9\s'-]+$/.test(name)) {
       return {
         valid: false,
         error: 'Name contains invalid characters',
@@ -180,15 +181,14 @@ class ContactsService {
     const now = new Date().toISOString();
 
     await db.run(
-      `INSERT INTO contacts (id, userId, name, phoneNumber, email, category, tags, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO contacts (id, userId, name, phoneNumber, email, tags, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         contactId,
         userId,
         data.name.trim(),
         phoneValidation.normalized,
         data.email?.trim() || null,
-        data.category || null,
         data.tags ? JSON.stringify(data.tags) : null,
         now,
         now,
@@ -203,7 +203,6 @@ class ContactsService {
       name: data.name.trim(),
       phoneNumber: phoneValidation.normalized!,
       email: data.email?.trim(),
-      category: data.category,
       tags: data.tags || [],
       createdAt: now,
       updatedAt: now,
@@ -268,19 +267,17 @@ class ContactsService {
         ? this.validatePhoneNumber(data.phoneNumber).normalized
         : existing.phoneNumber,
       email: data.email !== undefined ? data.email?.trim() || null : existing.email,
-      category: data.category !== undefined ? data.category : existing.category,
       tags: data.tags !== undefined ? JSON.stringify(data.tags) : existing.tags,
       updatedAt: now,
     };
 
     await db.run(
-      `UPDATE contacts SET name = ?, phoneNumber = ?, email = ?, category = ?, tags = ?, updatedAt = ?
+      `UPDATE contacts SET name = ?, phoneNumber = ?, email = ?, tags = ?, updatedAt = ?
        WHERE id = ? AND userId = ?`,
       [
         updates.name,
         updates.phoneNumber,
         updates.email,
-        updates.category,
         updates.tags,
         updates.updatedAt,
         contactId,
@@ -296,7 +293,6 @@ class ContactsService {
       name: updates.name,
       phoneNumber: updates.phoneNumber,
       email: updates.email || undefined,
-      category: updates.category || undefined,
       tags: updates.tags ? JSON.parse(updates.tags) : [],
       createdAt: existing.createdAt,
       updatedAt: updates.updatedAt,
@@ -367,12 +363,6 @@ class ContactsService {
       sql += ` AND (name LIKE ? OR phoneNumber LIKE ? OR email LIKE ?)`;
       const searchTerm = `%${query.search}%`;
       params.push(searchTerm, searchTerm, searchTerm);
-    }
-
-    // Filter by category
-    if (query.category) {
-      sql += ` AND category = ?`;
-      params.push(query.category);
     }
 
     // Filter by tags - if any tag matches
@@ -498,12 +488,11 @@ class ContactsService {
 
             if (existing) {
               await db.run(
-                `UPDATE contacts SET name = ?, email = ?, category = ?, tags = ?, updatedAt = ?
+                `UPDATE contacts SET name = ?, email = ?, tags = ?, updatedAt = ?
                  WHERE id = ?`,
                 [
                   contact.name.trim(),
                   contact.email?.trim() || null,
-                  contact.category || null,
                   contact.tags ? JSON.stringify(contact.tags) : null,
                   now,
                   existing.id,
@@ -533,15 +522,14 @@ class ContactsService {
         // Insert new contact
         const contactId = uuidv4();
         await db.run(
-          `INSERT INTO contacts (id, userId, name, phoneNumber, email, category, tags, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO contacts (id, userId, name, phoneNumber, email, tags, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             contactId,
             userId,
             contact.name.trim(),
             normalizedPhone,
             contact.email?.trim() || null,
-            contact.category || null,
             contact.tags ? JSON.stringify(contact.tags) : null,
             now,
             now,
@@ -580,11 +568,6 @@ class ContactsService {
     let sql = `SELECT * FROM contacts WHERE userId = ?`;
     const params: any[] = [userId];
 
-    if (filters?.category) {
-      sql += ` AND category = ?`;
-      params.push(filters.category);
-    }
-
     if (filters?.search) {
       sql += ` AND (name LIKE ? OR phoneNumber LIKE ? OR email LIKE ?)`;
       const searchTerm = `%${filters.search}%`;
@@ -615,11 +598,6 @@ class ContactsService {
       userId,
     ]);
 
-    const byCategory = await db.all(
-      `SELECT category, COUNT(*) as count FROM contacts WHERE userId = ? AND category IS NOT NULL GROUP BY category`,
-      [userId]
-    );
-
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -642,13 +620,7 @@ class ContactsService {
 
     return {
       totalContacts: total?.count || 0,
-      byCategory: byCategory.reduce(
-        (acc: any, row: any) => {
-          acc[row.category || 'Uncategorized'] = row.count;
-          return acc;
-        },
-        {}
-      ),
+      byCategory: {},
       created: {
         today: today?.count || 0,
         thisWeek: thisWeek?.count || 0,

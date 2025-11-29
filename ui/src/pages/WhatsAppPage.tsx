@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Phone, Plus, Trash2, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { QrCode, Phone, Plus, Trash2, CheckCircle, ArrowLeft } from 'lucide-react';
 import api from '../services/api';
 
 interface WhatsAppSession {
@@ -12,6 +13,7 @@ interface WhatsAppSession {
 }
 
 export default function WhatsAppPage() {
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
   const [loading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -161,9 +163,21 @@ export default function WhatsAppPage() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">WhatsApp Accounts</h1>
-          <p className="text-gray-600">Connect and manage your WhatsApp accounts for messaging</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-white rounded-lg transition"
+              title="Back to Home"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">WhatsApp Accounts</h1>
+              <p className="text-gray-600">Connect and manage your WhatsApp accounts for messaging</p>
+            </div>
+          </div>
         </div>
 
         {/* Actions */}
@@ -240,17 +254,37 @@ export default function WhatsAppPage() {
                   <button 
                     onClick={async () => {
                       try {
-                        const response = await api.get(`/api/v1/whatsapp/sessions/${session.id}/qr`);
-                        setQRCode(response.data.data.qrCode);
-                        setShowQRModal(true);
+                        if (!session.connected) {
+                          // For offline accounts, start a fresh session instead
+                          try {
+                            const response = await api.post('/api/v1/whatsapp/start-session', {
+                              phoneNumber: session.phoneNumber,
+                            });
+                            
+                            const { accountId, qrCode: initialQRCode } = response.data.data;
+                            setCurrentAccountId(accountId);
+                            setQRCode(initialQRCode);
+                            setShowQRModal(true);
+                          } catch (error: any) {
+                            console.error('Start session error:', error);
+                            throw error;
+                          }
+                        } else {
+                          // For connected accounts, just show the QR code
+                          const response = await api.get(`/api/v1/whatsapp/sessions/${session.id}/qr`);
+                          setQRCode(response.data.data.qrCode);
+                          setShowQRModal(true);
+                        }
                       } catch (error: any) {
-                        alert('Error loading QR code: ' + (error.response?.data?.error || error.message));
+                        console.error('QR button error:', error);
+                        const errorMsg = error.response?.data?.error || error.message || 'Network Error';
+                        alert('Error: ' + errorMsg);
                       }
                     }}
                     className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded border border-blue-200 text-sm"
                   >
                     <QrCode className="w-4 h-4" />
-                    QR Code
+                    {session.connected ? 'QR Code' : 'Re-scan'}
                   </button>
                   <button
                     onClick={async () => {

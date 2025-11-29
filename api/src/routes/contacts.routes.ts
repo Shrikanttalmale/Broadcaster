@@ -6,6 +6,98 @@ import { logger } from '../utils/logger';
 const router = Router();
 
 /**
+ * POST /contacts/bulk-import
+ * Import contacts from CSV/JSON array
+ */
+router.post('/bulk-import', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
+  try {
+    const { contacts, skipDuplicates = true, updateIfExists = false, defaultCountry = 'IN' } = req.body;
+
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Contacts array is required and must not be empty',
+        code: 'VALIDATION_ERROR',
+      });
+    }
+
+    const result = await contactsService.bulkImportContacts(req.user!.id, contacts, {
+      skipDuplicates,
+      updateIfExists,
+      defaultCountry,
+    });
+
+    res.json({
+      success: true,
+      message: `Import completed: ${result.imported} imported, ${result.skipped} skipped, ${result.failed} failed`,
+      data: result,
+    });
+  } catch (error: any) {
+    logger.error('Error importing contacts:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'IMPORT_ERROR',
+    });
+  }
+});
+
+/**
+ * DELETE /contacts/bulk-delete
+ * Bulk delete contacts
+ */
+router.delete('/bulk-delete', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Contact IDs array is required',
+        code: 'VALIDATION_ERROR',
+      });
+    }
+
+    const deleted = await contactsService.bulkDeleteContacts(ids, req.user!.id);
+
+    res.json({
+      success: true,
+      message: `${deleted} contacts deleted successfully`,
+      data: { deleted },
+    });
+  } catch (error: any) {
+    logger.error('Error bulk deleting contacts:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'DELETE_ERROR',
+    });
+  }
+});
+
+/**
+ * GET /contacts/statistics
+ * Get contact statistics
+ */
+router.get('/statistics', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
+  try {
+    const stats = await contactsService.getStatistics(req.user!.id);
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error: any) {
+    logger.error('Error getting statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'STATS_ERROR',
+    });
+  }
+});
+
+/**
  * POST /contacts
  * Create a new contact
  */
@@ -58,7 +150,15 @@ router.get('/', authMiddleware.verifyJWT, async (req: Request, res: Response) =>
 
     res.json({
       success: true,
-      data: result,
+      data: {
+        contacts: result.contacts,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          pages: result.pages,
+        },
+      },
     });
   } catch (error: any) {
     logger.error('Error fetching contacts:', error);
@@ -155,98 +255,6 @@ router.delete('/:id', authMiddleware.verifyJWT, async (req: Request, res: Respon
       success: false,
       error: error.message,
       code: 'DELETE_ERROR',
-    });
-  }
-});
-
-/**
- * POST /contacts/bulk-import
- * Import contacts from CSV/JSON array
- */
-router.post('/bulk-import', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
-  try {
-    const { contacts, skipDuplicates = true, updateIfExists = false, defaultCountry = 'IN' } = req.body;
-
-    if (!Array.isArray(contacts) || contacts.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Contacts array is required and must not be empty',
-        code: 'VALIDATION_ERROR',
-      });
-    }
-
-    const result = await contactsService.bulkImportContacts(req.user!.id, contacts, {
-      skipDuplicates,
-      updateIfExists,
-      defaultCountry,
-    });
-
-    res.json({
-      success: true,
-      message: `Import completed: ${result.imported} imported, ${result.skipped} skipped, ${result.failed} failed`,
-      data: result,
-    });
-  } catch (error: any) {
-    logger.error('Error importing contacts:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      code: 'IMPORT_ERROR',
-    });
-  }
-});
-
-/**
- * DELETE /contacts/bulk-delete
- * Bulk delete contacts
- */
-router.delete('/bulk-delete', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
-  try {
-    const { ids } = req.body;
-
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Contact IDs array is required',
-        code: 'VALIDATION_ERROR',
-      });
-    }
-
-    const deleted = await contactsService.bulkDeleteContacts(ids, req.user!.id);
-
-    res.json({
-      success: true,
-      message: `${deleted} contacts deleted successfully`,
-      data: { deleted },
-    });
-  } catch (error: any) {
-    logger.error('Error bulk deleting contacts:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      code: 'DELETE_ERROR',
-    });
-  }
-});
-
-/**
- * GET /contacts/statistics
- * Get contact statistics
- */
-router.get('/statistics', authMiddleware.verifyJWT, async (req: Request, res: Response) => {
-  try {
-    const stats = await contactsService.getStatistics(req.user!.id);
-
-    res.json({
-      success: true,
-      data: stats,
-    });
-  } catch (error: any) {
-    logger.error('Error getting statistics:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      code: 'STATS_ERROR',
     });
   }
 });

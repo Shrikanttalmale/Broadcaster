@@ -32,119 +32,109 @@ export const getDatabase = () => db;
 const initializeSchema = async () => {
   if (!db) throw new Error('Database not initialized');
 
-  // Check if tables exist
-  const tables = await db.all(
-    `SELECT name FROM sqlite_master WHERE type='table'`
-  );
+  logger.info('Creating/verifying database schema...');
 
-  if (tables.length === 0) {
-    logger.info('Creating database schema...');
+  // Users table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      passwordHash TEXT NOT NULL,
+      email TEXT,
+      role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'operator')),
+      licenseKey TEXT,
+      isActive BOOLEAN DEFAULT 1,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-    // Users table
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        passwordHash TEXT NOT NULL,
-        email TEXT,
-        role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'operator')),
-        licenseKey TEXT,
-        isActive BOOLEAN DEFAULT 1,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(licenseKey) REFERENCES licenses(licenseKey) ON DELETE SET NULL
-      )
-    `);
+  // License table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS licenses (
+      id TEXT PRIMARY KEY,
+      licenseKey TEXT UNIQUE NOT NULL,
+      licenseType TEXT NOT NULL CHECK (licenseType IN ('master', 'distributor', 'user')),
+      planId TEXT,
+      distributor JSON,
+      isActive BOOLEAN DEFAULT 1,
+      validFrom DATETIME,
+      validUntil DATETIME,
+      maxInstallations INTEGER DEFAULT 1,
+      features JSON,
+      signature TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-    // License table
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS licenses (
-        id TEXT PRIMARY KEY,
-        licenseKey TEXT UNIQUE NOT NULL,
-        licenseType TEXT NOT NULL CHECK (licenseType IN ('master', 'distributor', 'user')),
-        planId TEXT,
-        distributor JSON,
-        isActive BOOLEAN DEFAULT 1,
-        validFrom DATETIME,
-        validUntil DATETIME,
-        maxInstallations INTEGER DEFAULT 1,
-        features JSON,
-        signature TEXT,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+  // Plans table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS plans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      features JSON NOT NULL,
+      price REAL,
+      currency TEXT DEFAULT 'INR',
+      isActive BOOLEAN DEFAULT 1,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-    // Plans table
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS plans (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        features JSON NOT NULL,
-        price REAL,
-        currency TEXT DEFAULT 'INR',
-        isActive BOOLEAN DEFAULT 1,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+  // WhatsApp Accounts table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS whatsapp_accounts (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      phoneNumber TEXT UNIQUE NOT NULL,
+      sessionData JSON,
+      isActive BOOLEAN DEFAULT 1,
+      lastLogin DATETIME,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-    // WhatsApp Accounts table
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS whatsapp_accounts (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        phoneNumber TEXT UNIQUE NOT NULL,
-        sessionData JSON,
-        isActive BOOLEAN DEFAULT 1,
-        lastLogin DATETIME,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users(id)
-      )
-    `);
+  // Campaigns table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      messageTemplate TEXT,
+      contactListId TEXT,
+      status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'running', 'paused', 'completed', 'failed')),
+      scheduledFor DATETIME,
+      startedAt DATETIME,
+      completedAt DATETIME,
+      delayMin INTEGER DEFAULT 5000,
+      delayMax INTEGER DEFAULT 15000,
+      throttlePerMinute INTEGER DEFAULT 60,
+      retryAttempts INTEGER DEFAULT 3,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
-    // Campaigns table
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS campaigns (
-        id TEXT PRIMARY KEY,
-        userId TEXT NOT NULL,
-        name TEXT NOT NULL,
-        description TEXT,
-        messageTemplate TEXT,
-        contactListId TEXT,
-        status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'running', 'paused', 'completed', 'failed')),
-        scheduledFor DATETIME,
-        startedAt DATETIME,
-        completedAt DATETIME,
-        delayMin INTEGER DEFAULT 5000,
-        delayMax INTEGER DEFAULT 15000,
-        throttlePerMinute INTEGER DEFAULT 60,
-        retryAttempts INTEGER DEFAULT 3,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users(id)
-      )
-    `);
-
-    // Messages table
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        campaignId TEXT NOT NULL,
-        phoneNumber TEXT NOT NULL,
-        message TEXT,
-        status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'delivered', 'read', 'failed')),
-        attemptCount INTEGER DEFAULT 0,
-        lastError TEXT,
-        sentAt DATETIME,
-        deliveredAt DATETIME,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (campaignId) REFERENCES campaigns(id)
-      )
-    `);
+  // Messages table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      campaignId TEXT NOT NULL,
+      phoneNumber TEXT NOT NULL,
+      message TEXT,
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'delivered', 'read', 'failed')),
+      attemptCount INTEGER DEFAULT 0,
+      lastError TEXT,
+      sentAt DATETIME,
+      deliveredAt DATETIME,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
     // Contacts table
     await db.exec(`
@@ -156,33 +146,60 @@ const initializeSchema = async () => {
         email TEXT,
         tags JSON,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users(id)
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Sessions table (for tracking active sessions per user/license)
+    // Templates table
     await db.exec(`
-      CREATE TABLE IF NOT EXISTS sessions (
+      CREATE TABLE IF NOT EXISTS templates (
         id TEXT PRIMARY KEY,
         userId TEXT NOT NULL,
-        licenseKey TEXT NOT NULL,
-        refreshToken TEXT UNIQUE NOT NULL,
-        deviceInfo TEXT,
-        ipAddress TEXT,
-        userAgent TEXT,
+        name TEXT NOT NULL,
+        subject TEXT,
+        body TEXT NOT NULL,
+        variables JSON,
+        category TEXT,
         isActive BOOLEAN DEFAULT 1,
-        loginAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        lastActivityAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        expiresAt DATETIME,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users(id),
-        FOREIGN KEY (licenseKey) REFERENCES licenses(licenseKey)
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    logger.info('Database schema created successfully');
+    // Check if contacts table needs migration (add category column if missing)
+  try {
+    const contactColumns = await db.all(`PRAGMA table_info(contacts)`);
+    const hasCategory = contactColumns.some((col: any) => col.name === 'category');
+    if (!hasCategory) {
+      logger.info('Adding category column to contacts table...');
+      await db.exec(`ALTER TABLE contacts ADD COLUMN category TEXT`);
+      logger.info('Category column added successfully');
+    }
+  } catch (error: any) {
+    logger.warn('Could not migrate contacts table:', error.message);
   }
+
+  // Sessions table (for tracking active sessions per user/license)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      licenseKey TEXT NOT NULL,
+      refreshToken TEXT UNIQUE NOT NULL,
+      deviceInfo TEXT,
+      ipAddress TEXT,
+      userAgent TEXT,
+      isActive BOOLEAN DEFAULT 1,
+      loginAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      lastActivityAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expiresAt DATETIME,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id),
+      FOREIGN KEY (licenseKey) REFERENCES licenses(licenseKey)
+    )
+  `);
+
+  logger.info('Database schema verified successfully');
   
   // Always seed default license (will check if it exists first)
   await seedDefaultLicense();
